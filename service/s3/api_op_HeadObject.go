@@ -12,11 +12,8 @@ import (
 	internalauth "github.com/aws/aws-sdk-go-v2/internal/auth"
 	s3cust "github.com/aws/aws-sdk-go-v2/service/s3/internal/customizations"
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
-<<<<<<< HEAD
-=======
 	smithy "github.com/aws/smithy-go"
 	smithyendpoints "github.com/aws/smithy-go/endpoints"
->>>>>>> aaefb28fc1 (Add BuiltIn generation (#2152))
 	"github.com/aws/smithy-go/middleware"
 	smithytime "github.com/aws/smithy-go/time"
 	smithyhttp "github.com/aws/smithy-go/transport/http"
@@ -390,6 +387,9 @@ func (c *Client) addOperationHeadObjectMiddlewares(stack *middleware.Stack, opti
 	if err != nil {
 		return err
 	}
+	if err = addLegacyEndpointContextSetter(stack, options); err != nil {
+		return err
+	}
 	if err = addSetLoggerMiddleware(stack, options); err != nil {
 		return err
 	}
@@ -442,6 +442,9 @@ func (c *Client) addOperationHeadObjectMiddlewares(stack *middleware.Stack, opti
 		return err
 	}
 	if err = awsmiddleware.AddRecursionDetection(stack); err != nil {
+		return err
+	}
+	if err = addHeadObjectUpdateEndpoint(stack, options); err != nil {
 		return err
 	}
 	if err = addResponseErrorMiddleware(stack); err != nil {
@@ -860,6 +863,10 @@ func (*opHeadObjectResolveEndpointMiddleware) ID() string {
 func (m *opHeadObjectResolveEndpointMiddleware) HandleSerialize(ctx context.Context, in middleware.SerializeInput, next middleware.SerializeHandler) (
 	out middleware.SerializeOutput, metadata middleware.Metadata, err error,
 ) {
+	if awsmiddleware.GetRequiresLegacyEndpoints(ctx) {
+		return next.HandleSerialize(ctx, in)
+	}
+
 	req, ok := in.Request.(*smithyhttp.Request)
 	if !ok {
 		return out, metadata, fmt.Errorf("unknown transport type %T", in.Request)
